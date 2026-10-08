@@ -8,7 +8,7 @@ SBSDigGEMDet::SBSDigGEMDet()
 {
 }
 
-SBSDigGEMDet::SBSDigGEMDet(UShort_t uniqueid, UInt_t nplanes, int* layer, int* nstrips, double* offset, double* roangle, int nsamp, double zsup_thr, bool do_ped_cm, std::string pedfile, std::string cmfile):
+SBSDigGEMDet::SBSDigGEMDet(UShort_t uniqueid, UInt_t nplanes, int* layer, int* nstrips, double* offset, double* roangle, int nsamp, double zsup_thr, bool do_ped_cm, std::string pedfile, std::string cmfile, std::string cmfitfile):
   fUniqueID(uniqueid), fNPlanes(nplanes)
 {
 
@@ -101,6 +101,35 @@ SBSDigGEMDet::SBSDigGEMDet(UShort_t uniqueid, UInt_t nplanes, int* layer, int* n
         }
       }
     }
+    // ---------------------------------------------------------------------------------------------
+    // Optional: Crystal Ball fits of the beam CM per APV (from fitCMCrystalBall.C).
+    // APVs missing here, or with status != 0, keep the Gaussian from cmfile.
+    if ( !cmfitfile.empty() ) {
+      ifstream in_cmfit(std::string(env_libsbsdig)+"/db/"+cmfitfile);
+      if ( !in_cmfit.is_open() ) {
+        cout << "GEM CM fit file: " << cmfitfile.c_str() << " does not exist!!!" << endl;
+        exit(-1);
+      }
+      while ( currentline.ReadLine(in_cmfit) ) {
+        if ( currentline.BeginsWith("#") ) continue;
+        TObjArray *tok = currentline.Tokenize(" ");
+        if ( tok->GetEntries() >= 11 ) {
+          auto val = [&](int k){ return ((TObjString*)(*tok)[k])->GetString(); };
+          int plane  = val(1).Atoi();
+          int apv    = val(2).Atoi();
+          int status = val(10).Atoi();
+          if ( status == 0 ) {
+            fTrackerCMFitMap[plane][apv] = CMFit{ val(6).Atof(), val(7).Atof(),   // mean, sigma
+                                                  val(8).Atof(), val(9).Atof(),   // alpha, n
+                                                  val(3).Atof(), val(4).Atof() }; // fit_lo, fit_hi
+          }
+        }
+        delete tok;
+      }
+      for ( const auto& [p, m] : fTrackerCMFitMap )
+        cout << "GEM plane " << p << ": beam CM from Crystal Ball fits for " << m.size() << " APVs" << endl;
+    }
+    //-----------------------------------------------------------------------------------------------
 
     if (fTrackerCommonModeMap.size() != nplanes){
       cout << "The number of GEM planes defined in the GEM common-mode file " << cmfile.c_str() << " is inaccurate!!!" << endl;
@@ -124,6 +153,8 @@ SBSDigGEMDet::SBSDigGEMDet(UShort_t uniqueid, UInt_t nplanes, int* layer, int* n
     if (do_ped_cm){
       GEMPlanes.at(i).SetPlaneStripPed(fTrackerPedMap[i]);
       GEMPlanes.at(i).SetPlaneAPVCM(fTrackerCommonModeMap[i]);
+      
+    if ( fTrackerCMFitMap.count(i) ) GEMPlanes.at(i).SetPlaneAPVCMFit(fTrackerCMFitMap[i]);
     }
   }
 }

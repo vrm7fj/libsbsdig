@@ -11,12 +11,13 @@
 
 using trackerpedmap = std::map<int, pedmap>;
 using trackercmmap = std::map<int, cmmap>;
+using trackercmfitmap = std::map<int, cmfitmap>;  
 
 //________________________________
 class SBSDigGEMDet {
  public:
   SBSDigGEMDet();
-  SBSDigGEMDet(UShort_t uinqueid, UInt_t nplanes, int* layer, int* nstrips, double* offset, double* roangle, int nsamp, double zsup_thr, bool do_ped_cm = false, std::string pedfile = "ped.dat", std::string cmfile = "cm.dat");
+  SBSDigGEMDet(UShort_t uinqueid, UInt_t nplanes, int* layer, int* nstrips, double* offset, double* roangle, int nsamp, double zsup_thr, bool do_ped_cm = false, std::string pedfile = "ped.dat", std::string cmfile = "cm.dat", std::string cmfitfile = "");
   virtual ~SBSDigGEMDet();
   void Clear();
 
@@ -49,6 +50,7 @@ class SBSDigGEMDet {
   //containers to store ped and cm values for the tracker.
   trackerpedmap fTrackerPedMap;
   trackercmmap fTrackerCommonModeMap;
+  trackercmfitmap fTrackerCMFitMap;                   
 };
 
 #endif

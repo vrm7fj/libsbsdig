@@ -1831,7 +1831,8 @@ void SBSDigGEMSimDig::CheckOut(SBSDigGEMDet *gemdet, const int uniqueid,
 
             commonmode_apv_ts_sum = 0;
             for (int tsi = 0; tsi < fNSamples; tsi++) {
-              commonmode_apv_ts.at(tsi) = R->Gaus(commonmode_mean_apv, commonmode_sigma_apv); // DOES THE 'cm_sigma' also need to be multiplied by 6??
+              //commonmode_apv_ts.at(tsi) = R->Gaus(commonmode_mean_apv, commonmode_sigma_apv); // DOES THE 'cm_sigma' also need to be multiplied by 6??
+	      commonmode_apv_ts.at(tsi) = gemdet->GEMPlanes[i].SampleTrueCM(iAPV, R);
               commonmode_apv_ts_sum += commonmode_apv_ts.at(tsi);
               gemdet->GEMPlanes[i].InsertTrueCM(iAPV, tsi, commonmode_apv_ts.at(tsi));
             }

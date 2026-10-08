@@ -33,8 +33,11 @@ SBSDigGEMPlane::SBSDigGEMPlane(short trackeruniqueid, short layer, short mod, in
   if ( fTrackerID == 42 ) trackerName = "ft";
   else if ( fTrackerID == 43 ) trackerName = "fpp1";
 
-  fCommonModeDiffOnlineMean = new TH2D( TString::Format("hDiffOnlineCMandCMmean_%s_mod%i",trackerName.Data(),fModule), "Online Danning CM - CM mean; APV card; CM online - CM mean (user)", fNAPVs, -0.5, fNAPVs-0.5, 500, -200.0, 200.0 );
-  fCommonModeDiffOnlineTrue = new TH2D( TString::Format("hDiffOnlineCMandTrueCM_%s_mod%i",trackerName.Data(),fModule), "Online Danning CM - True CM; APV card; CM online - True CM (simulated)", fNAPVs, -0.5, fNAPVs-0.5, 500, -200.0, 200.0 );
+  fCommonModeDiffOnlineMean = new TH2D( TString::Format("hDiffOnlineCMandCMmean_%s_mod%i",trackerName.Data(),fModule), "Online Danning CM - CM mean; APV card; CM online - CM mean (user)", fNAPVs, -0.5, fNAPVs-0.5, 2500, -1000.0, 1000.0 );
+  fCommonModeDiffOnlineTrue = new TH2D( TString::Format("hDiffOnlineCMandTrueCM_%s_mod%i",trackerName.Data(),fModule), "Online Danning CM - True CM; APV card; CM online - True CM (simulated)", fNAPVs, -0.5, fNAPVs-0.5, 2500, -1000.0, 1000.0 );
+
+  fTrueCMbyAPV   = new TH2D( TString::Format("hTrueCM_by_APV_%s_mod%i",trackerName.Data(),fModule),   "Generated (true) CM; APV card; true CM (ADC)",   fNAPVs, -0.5, fNAPVs-0.5, 1024, -0.5, 4095.5 );
+  fOnlineCMbyAPV = new TH2D( TString::Format("hOnlineCM_by_APV_%s_mod%i",trackerName.Data(),fModule), "Online Danning CM; APV card; online CM (ADC)", fNAPVs, -0.5, fNAPVs-0.5, 1024, -0.5, 4095.5 );
 
   Clear();
 }
@@ -134,9 +137,15 @@ void SBSDigGEMPlane::ApplyOnlineCMCorr( const bool do_onlineCM_histos ){ // Calc
 
       double thisAPVthisSampOnineCM = GetOnlineCommonMode(thisAPVthisSampPedSubADC, iAPV);
 
+      // if ( do_onlineCM_histos ){
+      //   fCommonModeDiffOnlineMean->Fill( iAPV, thisAPVthisSampOnineCM - GetAPVCMMean(iAPV) );
+      //   fCommonModeDiffOnlineTrue->Fill( iAPV, thisAPVthisSampOnineCM - fTrueCMmap.at(ApvTS{iAPV, isamp}) );
+      // }
+
       if ( do_onlineCM_histos ){
         fCommonModeDiffOnlineMean->Fill( iAPV, thisAPVthisSampOnineCM - GetAPVCMMean(iAPV) );
         fCommonModeDiffOnlineTrue->Fill( iAPV, thisAPVthisSampOnineCM - fTrueCMmap.at(ApvTS{iAPV, isamp}) );
+        fOnlineCMbyAPV->Fill( iAPV, thisAPVthisSampOnineCM );   // new
       }
 
       for ( int ichan=0; ichan < fNChanAPV; ichan++ ){
@@ -164,8 +173,32 @@ void SBSDigGEMPlane::ApplyOnlineZS(const double zs_thr_nsigma){
   }
 }
 
-void SBSDigGEMPlane::WriteCMHistos(){
+// void SBSDigGEMPlane::WriteCMHistos(){
 
+//   fCommonModeDiffOnlineMean->Write();
+//   fCommonModeDiffOnlineTrue->Write();
+// }
+
+void SBSDigGEMPlane::WriteCMHistos(){
   fCommonModeDiffOnlineMean->Write();
   fCommonModeDiffOnlineTrue->Write();
+  fTrueCMbyAPV->Write();     // new
+  fOnlineCMbyAPV->Write();   // new
+}
+
+// Build one Crystal Ball TF1 per APV from the beam-CM fit table.
+void SBSDigGEMPlane::SetPlaneAPVCMFit(const cmfitmap& fits){
+  for ( const auto& [apv, f] : fits ){
+    TF1* cb = new TF1(Form("cmcb_t%d_p%d_a%d", fTrackerID, fModule, apv), "crystalball", f.lo, f.hi);
+    cb->SetParameters(1., f.mean, f.sigma, f.alpha, f.n); // constant irrelevant for sampling
+    cb->SetNpx(2000);
+    fCMFitFunc[apv] = cb;
+  }
+}
+
+// Draw a true CM value: Crystal Ball if fitted, else Gaussian from the CM file.
+double SBSDigGEMPlane::SampleTrueCM(int apv, TRandom3* R){
+  auto it = fCMFitFunc.find(apv);
+  if ( it != fCMFitFunc.end() ) return it->second->GetRandom(R);
+  return R->Gaus(GetAPVCMMean(apv), GetAPVCMSigma(apv));  // fallback: old behaviour
 }

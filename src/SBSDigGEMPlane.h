@@ -10,6 +10,7 @@
 #include "TRandom3.h"
 #include "TH2D.h"
 #include "TString.h"
+#include "TF1.h"
 
 class TH2D;
 
@@ -21,6 +22,10 @@ struct Pedestal {
 struct CommonMode {
   double mean{};
   double sigma{};
+};
+
+struct CMFit {
+  double mean{}, sigma{}, alpha{}, n{}, lo{}, hi{};
 };
 
 struct ApvTS {
@@ -37,6 +42,7 @@ struct ApvTS {
 using pedmap = std::map<int, Pedestal>; // Map ped mean and rms value to each strip number.
 using cmmap = std::map<int, CommonMode>; // Map CM mean and sigma values to each APV number.
 using cmmeanmap = std::map<ApvTS, double>; // Map to hold true simulated CM mean value for a all the strips and TS.
+using cmfitmap = std::map<int, CMFit>;
 
 constexpr int fNChanAPV {128};
 
@@ -94,6 +100,9 @@ class SBSDigGEMPlane {
     fCommonmodeMap = CommonmodeMap;    
   };
 
+  void SetPlaneAPVCMFit(const cmfitmap& fits);
+  double SampleTrueCM(int apv, TRandom3* R);
+
   Double_t GetStripPedMean(int strip) {return fPedestalMap[strip].mean;};
   Double_t GetStripPedRMS(int strip) {return fPedestalMap[strip].rms;};
   Double_t GetAPVCMMean(int apv) {return fCommonmodeMap[apv].mean;};
@@ -104,7 +113,11 @@ class SBSDigGEMPlane {
   void ApplyOnlineCMCorr( const bool do_onlineCM_histos = false ); // Implement CM correction to digitized data.
   void WriteCMHistos(); // Write online CM histos.
   void ApplyOnlineZS(const double zs_thr_nsigma); // Implement zero suppression. Only to be done after ApplyOnlineCMCorr().
-  void InsertTrueCM( const int iAPV, const int isamp, const double true_cm_mean ) { fTrueCMmap.emplace(ApvTS{iAPV,isamp}, true_cm_mean); };
+  //void InsertTrueCM( const int iAPV, const int isamp, const double true_cm_mean ) { fTrueCMmap.emplace(ApvTS{iAPV,isamp}, true_cm_mean); };
+  void InsertTrueCM( const int iAPV, const int isamp, const double true_cm_mean ) {
+    fTrueCMmap.emplace(ApvTS{iAPV,isamp}, true_cm_mean);
+    fTrueCMbyAPV->Fill(iAPV, true_cm_mean);
+  };
   void ClearTrueCMmap(){ fTrueCMmap.clear(); }; // Has to be cleared after each loop over the 'j' strips in the SBSDigGEMSimDig::Checkout() method.
 
  private:
@@ -146,6 +159,12 @@ class SBSDigGEMPlane {
   TH2D* fCommonModeDiffOnlineMean;
   cmmeanmap fTrueCMmap; // std::map to hold the true simulated CM values.
   TH2D* fCommonModeDiffOnlineTrue;
+
+  TH2D* fTrueCMbyAPV;    // generated (true) CM per APV
+  TH2D* fOnlineCMbyAPV;  // online (emulated firmware) CM per APV
+
+  // Crystal Ball fit per APV, for sampling the true CM.
+  std::map<int, TF1*> fCMFitFunc;   
   
 };
 #endif
