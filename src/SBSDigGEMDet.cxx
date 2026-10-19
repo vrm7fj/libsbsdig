@@ -102,8 +102,7 @@ SBSDigGEMDet::SBSDigGEMDet(UShort_t uniqueid, UInt_t nplanes, int* layer, int* n
       }
     }
     // ---------------------------------------------------------------------------------------------
-    // Optional: Crystal Ball fits of the beam CM per APV (from fitCMCrystalBall.C).
-    // APVs missing here, or with status != 0, keep the Gaussian from cmfile.
+    //Crystal Ball fits of the beam CM per APV 
     if ( !cmfitfile.empty() ) {
       ifstream in_cmfit(std::string(env_libsbsdig)+"/db/"+cmfitfile);
       if ( !in_cmfit.is_open() ) {
@@ -113,16 +112,14 @@ SBSDigGEMDet::SBSDigGEMDet(UShort_t uniqueid, UInt_t nplanes, int* layer, int* n
       while ( currentline.ReadLine(in_cmfit) ) {
         if ( currentline.BeginsWith("#") ) continue;
         TObjArray *tok = currentline.Tokenize(" ");
-        if ( tok->GetEntries() >= 11 ) {
+        if ( tok->GetEntries() >= 10 ) {
           auto val = [&](int k){ return ((TObjString*)(*tok)[k])->GetString(); };
           int plane  = val(1).Atoi();
           int apv    = val(2).Atoi();
-          int status = val(10).Atoi();
-          if ( status == 0 ) {
-            fTrackerCMFitMap[plane][apv] = CMFit{ val(6).Atof(), val(7).Atof(),   // mean, sigma
-                                                  val(8).Atof(), val(9).Atof(),   // alpha, n
-                                                  val(3).Atof(), val(4).Atof() }; // fit_lo, fit_hi
-          }
+          fTrackerCMFitMap[plane][apv] = CMFit{ val(6).Atof(), val(7).Atof(),   // mean, sigma
+                                                val(8).Atof(), val(9).Atof(),   // alpha, n
+                                                val(3).Atof(), val(4).Atof() }; // fit_lo, fit_hi
+          
         }
         delete tok;
       }

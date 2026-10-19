@@ -190,7 +190,7 @@ void SBSDigGEMPlane::WriteCMHistos(){
 void SBSDigGEMPlane::SetPlaneAPVCMFit(const cmfitmap& fits){
   for ( const auto& [apv, f] : fits ){
     TF1* cb = new TF1(Form("cmcb_t%d_p%d_a%d", fTrackerID, fModule, apv), "crystalball", f.lo, f.hi);
-    cb->SetParameters(1., f.mean, f.sigma, f.alpha, f.n); // constant irrelevant for sampling
+    cb->SetParameters(1., f.mean, f.sigma, f.alpha, f.n); 
     cb->SetNpx(2000);
     fCMFitFunc[apv] = cb;
   }
@@ -200,5 +200,5 @@ void SBSDigGEMPlane::SetPlaneAPVCMFit(const cmfitmap& fits){
 double SBSDigGEMPlane::SampleTrueCM(int apv, TRandom3* R){
   auto it = fCMFitFunc.find(apv);
   if ( it != fCMFitFunc.end() ) return it->second->GetRandom(R);
-  return R->Gaus(GetAPVCMMean(apv), GetAPVCMSigma(apv));  // fallback: old behaviour
+  return R->Gaus(GetAPVCMMean(apv), GetAPVCMSigma(apv));  // fallback
 }
